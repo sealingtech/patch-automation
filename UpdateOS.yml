@@ -1,0 +1,41 @@
+---
+- name: RHEL,ROCKY,CENTOS 8 UPDATES using DNF
+  hosts: 'node'
+  become: yes
+  vars:
+    update_excludes: '[]' # "[]" < will not exclude any packages remove "[]" and list specific packages if needed >  "kernel-*, kmod, vim, bind"
+    update_installs: '*'  # "*" < will update all packages remove "*" and list specific packages if needed >  "kernel-*, kmod, vim, bind"
+  tasks:
+
+    - name: taking notes on the kernel version before we update
+      debug:
+        msg: "{{ ansible_kernel }}"
+      register: pre_update
+
+    - name: updating the system 
+      dnf:
+        name: "{{ update_installs | default('*') }}"
+        state: latest
+        exclude: "{{ update_excludes | default([]) }}"
+
+    - name: taking notes on the kernel version after we update
+      shell: (rpm -q --last kernel | awk 'NR==1{sub(/kernel-/,""); print $1}')
+      register: post_update
+
+    - name: capturing dnf history ID in case we need to roll back
+      shell: dnf history | awk 'NR==4 {print $1}'
+      register: dnf_history_id
+
+    - name: Rebooting because there is a new kernel installed per notes
+      reboot:
+        msg: "Reboot initiated by Ansible for kernel updates" #grep in remote var/log/messages for tracking if needed 
+        post_reboot_delay: 30
+      when: ("{{ansible_kernel}}" != "{{post_update.stdout}}")
+
+    - name: display kernel version after updates 
+      debug:
+        msg: "{{post_update.stdout}}"
+
+    - name: DNF history ID
+      debug: 
+        msg: What packages were altered while running this playbook can be found using DNF history info "{{dnf_history_id.stdout}}" 
