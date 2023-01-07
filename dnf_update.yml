@@ -1,6 +1,6 @@
 ---
 - name: RHEL,ROCKY,CENTOS 8 UPDATES using DNF
-  hosts: 'node'
+  hosts: '*'
   become: yes
   vars:
     update_excludes: '[]' # "[]" < will not exclude any packages remove "[]" and list specific packages if needed >  "kernel-*, kmod, vim, bind"
